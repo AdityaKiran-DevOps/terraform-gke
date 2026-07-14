@@ -1,14 +1,15 @@
 pipeline {
     agent any
 
+    tools {
+        sonarQube 'SonarScanner'
+    }
+
     environment {
         PROJECT_ID = "project-122fc6d2-7f22-490c-ab6"
         REGION = "us-central1"
         REPOSITORY = "devops-repo"
         IMAGE = "terraform-gke"
-        CLUSTER = "devops-gke"
-        ZONE = "us-central1-a"
-        NAMESPACE = "devops"
         TAG = "v${BUILD_NUMBER}"
     }
 
@@ -16,35 +17,26 @@ pipeline {
 
         stage('Checkout') {
             steps {
-                checkout scm
+                git branch: 'main',
+                    credentialsId: 'github-creds',
+                    url: 'https://github.com/AdityaKiran-DevOps/terraform-gke.git'
             }
         }
 
-        stage('Verify Tools') {
+        stage('SonarQube Scan') {
             steps {
-                sh '''
-                docker --version
-                kubectl version --client
-                terraform version
-                gcloud --version
-                '''
-            }
-        }
-
-        stage('Configure GCP') {
-            steps {
-                sh '''
-                gcloud config set project ${PROJECT_ID}
-                gcloud auth configure-docker ${REGION}-docker.pkg.dev --quiet
-                '''
+                withSonarQubeEnv('SonarQube') {
+                    sh '''
+                    sonar-scanner
+                    '''
+                }
             }
         }
 
         stage('Build Docker Image') {
             steps {
                 sh '''
-                docker build \
-                -t ${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPOSITORY}/${IMAGE}:${TAG} .
+                docker build -t ${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPOSITORY}/${IMAGE}:${TAG} .
                 '''
             }
         }
@@ -52,8 +44,9 @@ pipeline {
         stage('Push Image') {
             steps {
                 sh '''
-                docker push \
-                ${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPOSITORY}/${IMAGE}:${TAG}
+                gcloud auth configure-docker ${REGION}-docker.pkg.dev --quiet
+
+                docker push ${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPOSITORY}/${IMAGE}:${TAG}
                 '''
             }
         }
@@ -61,28 +54,25 @@ pipeline {
         stage('Deploy to GKE') {
             steps {
                 sh '''
-                gcloud container clusters get-credentials ${CLUSTER} \
-                --zone ${ZONE}
+                gcloud container clusters get-credentials devops-gke \
+                    --zone us-central1-a
 
-                kubectl set image deployment/${IMAGE} \
-                ${IMAGE}=${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPOSITORY}/${IMAGE}:${TAG} \
-                -n ${NAMESPACE}
+                kubectl set image deployment/terraform-gke \
+                terraform-gke=${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPOSITORY}/${IMAGE}:${TAG} \
+                -n devops
 
-                kubectl rollout status deployment/${IMAGE} \
-                -n ${NAMESPACE}
+                kubectl rollout status deployment/terraform-gke -n devops
                 '''
             }
         }
     }
 
     post {
-
         success {
-            echo 'Deployment Successful'
+            echo 'Pipeline completed successfully!'
         }
-
         failure {
-            echo 'Pipeline Failed'
+            echo 'Pipeline failed.'
         }
     }
 }
