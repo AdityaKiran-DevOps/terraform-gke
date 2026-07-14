@@ -2,7 +2,7 @@ pipeline {
     agent any
 
     tools {
-        sonarQube 'SonarScanner'
+       //SonarScanner is not Declared here
     }
 
     environment {
