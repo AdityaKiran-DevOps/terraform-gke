@@ -1,10 +1,6 @@
 pipeline {
     agent any
 
-    tools {
-       //SonarScanner is not Declared here
-    }
-
     environment {
         PROJECT_ID = "project-122fc6d2-7f22-490c-ab6"
         REGION = "us-central1"
