@@ -50,6 +50,17 @@ pipeline {
             }
         }
 
+        stage('Trivy Filesystem Scan') {
+    steps {
+        sh '''
+        trivy fs \
+        --scanners vuln,secret \
+        --severity HIGH,CRITICAL \
+        --exit-code 0 \
+        .
+        '''
+    }
+}
         stage('Build Docker Image') {
             steps {
                 sh """
@@ -57,7 +68,16 @@ pipeline {
                 """
             }
         }
-
+stage('Trivy Image Scan') {
+    steps {
+        sh '''
+        trivy image \
+        --severity HIGH,CRITICAL \
+        --exit-code 0 \
+        ${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPOSITORY}/${IMAGE}:${TAG}
+        '''
+    }
+}
         stage('Push Docker Image') {
             steps {
 
