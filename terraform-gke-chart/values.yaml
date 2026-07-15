@@ -1,0 +1,12 @@
+replicaCount: 3
+
+image:
+  repository: us-central1-docker.pkg.dev/project-122fc6d2-7f22-490c-ab6/devops-repo/terraform-gke
+  tag: v13
+  pullPolicy: Always
+
+service:
+  type: LoadBalancer
+  port: 80
+
+containerPort: 80
